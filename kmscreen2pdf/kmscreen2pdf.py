@@ -11,8 +11,8 @@ Options:
   --basedir=<dir>   Base directory.
 
 Description:
-    This program converts images and text files to PDFs with invisible text.
-    Requires ImageMagic to be installed.
+    This Windows program converts images and text files to PDFs with invisible text.
+    Requires ImageMagick to be installed.
 """
 import os
 import sys
@@ -27,11 +27,13 @@ from loguru import logger
 from docopt import docopt
 from wand.image import Image as WandImage
 
-def convert_img_to_png(img_path:pathlib.Path):
-    """Convert image to PNG using wand (ImageMagick)."""
+
+def convert_img_to_png(img_path: pathlib.Path):
+    """Convert image to PNG using wand (ImageMagick).
+    For WMF files only Windows is supported."""
     png_path = img_path.with_suffix(".png")
     with WandImage(filename=img_path) as img:
-        img.format = 'png'
+        img.format = "png"
         img.save(filename=png_path)
     return png_path
 
@@ -48,6 +50,7 @@ def get_executable_path():
 class MessageBox:
     """Display a message box on Windows.
     Write the message to the log file as well."""
+
     # 0x00000000: OK button only.
     # 0x00000001: OK and Cancel buttons.
     # 0x00000010: Information icon.
@@ -83,8 +86,9 @@ class MessageBox:
 
 
 def create_pdf_with_invisible_text(
-    image_path, output_pdf_path, text, text_position=(100, 100), page_size=A4
+    image_path, output_pdf_path, text, text_position=(0, 0), page_size=A4
 ):
+    """Create a PDF with invisible text on top of an image."""
     # Convert WMF to PNG
     png_image_path = convert_img_to_png(image_path)
 
@@ -94,19 +98,20 @@ def create_pdf_with_invisible_text(
     # Get image size
     img_width, img_height = img.size
 
-    # Create a canvas for the PDF
-    c = canvas.Canvas(output_pdf_path, pagesize=page_size)
-    width, height = letter
-
     # Convert Pillow image to ReportLab-compatible format
-    img.save("temp_image.png")
+    # temp_image = "temp_image.png"
+    # img.save(temp_image)
 
     # Calculate position to center the image
-    x = (width - img_width) // 2
-    y = (height - img_height) // 2
+    page_width, page_height = page_size
+    x = (page_width - img_width) // 2
+    y = (page_height - img_height) // 2
+
+    # Create a canvas for the PDF
+    c = canvas.Canvas(output_pdf_path, pagesize=page_size)
 
     # Draw the image on the PDF
-    c.drawImage("temp_image.jpg", x, y, width=img_width, height=img_height)
+    c.drawImage(png_image_path, x, y, width=img_width, height=img_height)
 
     # Set the text color to transparent
     transparent_color = Color(0, 0, 0, alpha=0)
@@ -143,14 +148,17 @@ def main():
     find matching image and text files,
     and create a PDF with invisible text."""
     window = MessageBox()
-    arguments = docopt(__doc__, version='kmscreen2pdf 0.1')
+    arguments = docopt(__doc__, version="kmscreen2pdf 0.1")
     base_dir_from_arg = arguments.get("--basedir")
     if not base_dir_from_arg:
         base_dir = pathlib.Path(get_executable_path()).parent / "kmscreen2pdf"
     else:
         base_dir = pathlib.Path(base_dir_from_arg).expanduser().resolve()
     if not base_dir.exists():
-        window.warning("Base directory not found", f"Creating base directory: '{base_dir}' for input and output files.")
+        window.warning(
+            "Base directory not found",
+            f"Creating base directory: '{base_dir}' for input and output files.",
+        )
         base_dir.mkdir(parents=True)
     input_dir = base_dir / "input"
     input_dir.mkdir(parents=True, exist_ok=True)
@@ -166,7 +174,10 @@ def main():
         try:
             create_pdf_with_invisible_text(image_path, output_pdf_path, text)
         except Exception as e:
-            window.error("Processing error", f"Error processing '{image_path}'. See log file for details.")
+            window.error(
+                "Processing error",
+                f"Error processing '{image_path}'. See log file for details.",
+            )
             logger.critical(f"Error processing '{image_path}': {e}")
             text_file = image_path.with_suffix(".txt")
             image_path.rename(error_dir / image_path.name)
