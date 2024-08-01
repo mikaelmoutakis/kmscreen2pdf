@@ -54,7 +54,9 @@ class MessageBox:
         if platform.system() == "Windows":
             ok_only = 0x00000000
             selected_type = self.window_types.get(type, 0x00000040)
-            ctypes.windll.user32.MessageBoxW(0, message, f"KMScreen2PDF: {title}", ok_only | selected_type)
+            ctypes.windll.user32.MessageBoxW(
+                0, message, f"KMScreen2PDF: {title}", ok_only | selected_type
+            )
         self.log_types.get(type, logger.error)(message)
 
     def error(self, title: str, message: str):
@@ -66,12 +68,14 @@ class MessageBox:
     def info(self, title: str, message: str):
         self._box(title, message, "info")
 
+
 window = MessageBox()
 try:
     from wand.image import Image as WandImage
 except ImportError:
     window.error("ImageMagick not found", "ImageMagick is required. Is it installed?")
     sys.exit(1)
+
 
 def convert_img_to_png(img_path: pathlib.Path):
     """Convert image to PNG using wand (ImageMagick).
@@ -93,29 +97,12 @@ def get_executable_path():
     return os.path.abspath(__file__)
 
 
-
-
 def create_pdf_with_invisible_text(
     image_path, output_pdf_path, text, text_position=(50, 50), page_size=A4
 ):
     """Create a PDF with invisible text on top of an image."""
     # Create a canvas for the PDF
     c = canvas.Canvas(str(output_pdf_path), pagesize=page_size)
-
-    # Set the text color to transparent
-    transparent_color = Color(0, 0, 0, alpha=0)
-    c.setFillColor(transparent_color)
-
-    # Embed the invisible text on the PDF at the specified position
-    # c.drawString(text_position[0], text_position[1], text)
-    text_object = c.beginText()
-    text_object.setTextOrigin(text_position[0], text_position[1])
-    lines = re.split(r"\r\n|\r|\n", text)
-    line_height = 14
-    for i, line in enumerate(lines):
-        text_object.setTextOrigin(text_position[0], text_position[1] - i * line_height)
-        text_object.textLine(line)
-    c.drawText(text_object)
 
     # Convert WMF to PNG
     png_image_path = convert_img_to_png(image_path)
@@ -138,12 +125,27 @@ def create_pdf_with_invisible_text(
     # Draw the image on the PDF
     c.drawImage(png_image_path, x, y, width=img_width // 1.5, height=img_height // 1.5)
 
+    # Set the text color to transparent
+    transparent_color = Color(0, 0, 0, alpha=0)
+    c.setFillColor(transparent_color)
+
+    # Embed the invisible text on the PDF at the specified position
+    # c.drawString(text_position[0], text_position[1], text)
+    text_object = c.beginText()
+    text_object.setTextOrigin(text_position[0], text_position[1])
+    lines = re.split(r"\r\n|\r|\n", text)
+    line_height = 14
+    for i, line in enumerate(lines):
+        text_object.setTextOrigin(text_position[0], text_position[1] - i * line_height)
+        text_object.textLine(line)
+    c.drawText(text_object)
+
     # Save the PDF
     c.showPage()
     c.save()
 
     # Delete the temporary PNG image
-    png_image_path.unlink()
+    # png_image_path.unlink()
 
 
 def find_matching_documents(
@@ -167,7 +169,7 @@ def main():
     """Loop through the input directory,
     find matching image and text files,
     and create a PDF with invisible text."""
-    arguments = docopt(__doc__, version="kmscreen2pdf 0.1")
+    arguments = docopt(__doc__, version="kmscreen2pdf 0.1.1")
     base_dir_from_arg = arguments.get("--basedir")
     if not base_dir_from_arg:
         base_dir = pathlib.Path(get_executable_path()).parent / "kmscreen2pdf"
@@ -192,6 +194,7 @@ def main():
         input_dir, image_extension=arguments["--filetype"]
     ):
         output_pdf_path = output_dir / image_path.with_suffix(".pdf").name
+        png_image = image_path.with_suffix(".png")
         try:
             text = text_file_path.read_text(encoding="utf-8")
             text = text.replace("\n", "\r\n")
@@ -205,13 +208,16 @@ def main():
             text_file = image_path.with_suffix(".txt")
             image_path.rename(error_dir / image_path.name)
             text_file.rename(error_dir / text_file.name)
-            png_image = image_path.with_suffix(".png")
             if png_image.exists():
-                png_image.unlink()
+                png_image.rename(error_dir / png_image.name)
             raise e
         else:
-            image_path.unlink()
-            text_file_path.unlink()
+            if image_path.exists():
+                image_path.unlink()
+            if text_file_path.exists():
+                text_file_path.unlink()
+            if png_image.exists():
+                png_image.unlink()
     try:
         logger.debug("Processing complete.")
         logger.debug(f"The last image was '{image_path}'")
