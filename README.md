@@ -1,14 +1,13 @@
 # kmscreen2pdf
-A small Windows utility for creating PDF files from images exported from KM Screen. 
-The PDF file will include hidden text read from a text file.
+**kmscreen2pdf** is a small Windows utility designed to create PDF files from images exported from KM Screen. The resulting PDF file will include hidden text extracted from a text file.
 
 ## Installation and Usage:
-1. Install [ImageMagick](https://imagemagick.org/script/download.php) on the system. 
-2. Download the [kmscreen2pdf.exe](https://github.com/mikaelmoutakis/kmscreen2pdf/releases/) windows executable.  
-3. Place it in a directory that the user has write and read access to. 
-4. Call the application from FileMaker or run it directly. 
-5. The application will then create directory 'kmscreen2pdf' in the same directory as the
-executable. The program will then create the following subdirectories:
+
+1. Install [ImageMagick](https://imagemagick.org/script/download.php) on your system.
+2. Download the [kmscreen2pdf.exe](https://github.com/mikaelmoutakis/kmscreen2pdf/releases/) Windows executable.
+3. Place the executable in a directory where you have read and write access.
+4. Execute the application from FileMaker or run it directly.
+5. The application will create a directory named 'kmscreen2pdf' in the same location as the executable. Within this directory, the following subdirectories will be generated:
     ````
     kmscreen2pdf
     ├── error
@@ -16,8 +15,9 @@ executable. The program will then create the following subdirectories:
     ├── logs
     └── output
     ````
-6. Place the WMF and TXT files in the 'input' subdirectory. The files should have the same names, except for the file ending. E.g. 'export_2024-07-20.wmf' and 'export_2024-07-20.txt'. Note that the file endings are lowercase letters (e.g. 'txt' and not 'TXT').
-7. Run the kmscreen2pdf.exe program. The program will then a) create a pdf file in the 'output' directory, b) delete the wmf and txt files, c) add information to the log file in the 'logs' directory. If something goes wrong, the input files will be moved to the 'error' directory. 
+6. Place the WMF and TXT files in the 'input' subdirectory. Ensure the files have identical names, differing only in their extensions (e.g., 'export_2024-07-20.wmf' and 'export_2024-07-20.txt'). Note that the file extensions should be in lowercase (e.g., 'txt' and not 'TXT').
+7. Run the kmscreen2pdf.exe program. The program will: a) Create a PDF file in the 'output' directory. b) Delete the WMF and TXT files. c) Log information in the 'logs' directory. If an error occurs, the input files will be moved to the 'error' directory.
+
 
 ## Options:
 The utility has the following command line options:

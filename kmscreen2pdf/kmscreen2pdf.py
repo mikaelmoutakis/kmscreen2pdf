@@ -2,7 +2,7 @@
 kmscreen2pdf.exe
 
 Usage:
-  kmscreen2pdf.exe [OPTIONS]
+  kmscreen2pdf.exe [--basedir=<dir>] [--filetype=<ext>]
   kmscreen2pdf.exe -h
 
 Options:
@@ -96,9 +96,27 @@ def get_executable_path():
 
 
 def create_pdf_with_invisible_text(
-    image_path, output_pdf_path, text, text_position=(100, 100), page_size=A4
+    image_path, output_pdf_path, text, text_position=(50, 50), page_size=A4
 ):
     """Create a PDF with invisible text on top of an image."""
+    # Create a canvas for the PDF
+    c = canvas.Canvas(str(output_pdf_path), pagesize=page_size)
+
+    # Set the text color to transparent
+    transparent_color = Color(0, 0, 0, alpha=0)
+    c.setFillColor(transparent_color)
+
+    # Embed the invisible text on the PDF at the specified position
+    # c.drawString(text_position[0], text_position[1], text)
+    text_object = c.beginText()
+    text_object.setTextOrigin(text_position[0], text_position[1])
+    lines = re.split(r"\r\n|\r|\n", text)
+    line_height = 14
+    for i, line in enumerate(lines):
+        text_object.setTextOrigin(text_position[0], text_position[1] - i * line_height)
+        text_object.textLine(line)
+    c.drawText(text_object)
+
     # Convert WMF to PNG
     png_image_path = convert_img_to_png(image_path)
 
@@ -117,26 +135,8 @@ def create_pdf_with_invisible_text(
     x = (page_width - img_width // 1.5) // 2
     y = (page_height - img_height // 1.5) // 2
 
-    # Create a canvas for the PDF
-    c = canvas.Canvas(str(output_pdf_path), pagesize=page_size)
-
     # Draw the image on the PDF
     c.drawImage(png_image_path, x, y, width=img_width // 1.5, height=img_height // 1.5)
-
-    # Set the text color to transparent
-    transparent_color = Color(0, 0, 0, alpha=0)
-    c.setFillColor(transparent_color)
-
-    # Embed the invisible text on the PDF at the specified position
-    # c.drawString(text_position[0], text_position[1], text)
-    text_object = c.beginText()
-    text_object.setTextOrigin(text_position[0], text_position[1])
-    lines = re.split(r"\r\n|\r|\n", text)
-    line_height = 14
-    for i, line in enumerate(lines):
-        text_object.setTextOrigin(text_position[0], text_position[1] - i * line_height)
-        text_object.textLine(line)
-    c.drawText(text_object)
 
     # Save the PDF
     c.showPage()
