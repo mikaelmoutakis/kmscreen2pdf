@@ -4,7 +4,7 @@
 ## Installation and Usage:
 
 1. Install [ImageMagick](https://imagemagick.org/script/download.php) on your system.
-2. Download the [kmscreen2pdf.exe](https://github.com/mikaelmoutakis/kmscreen2pdf/releases/) Windows executable.
+2. Download the [kmscreen2pdf.exe](https://github.com/mikaelmoutakis/kmscreen2pdf/releases/download/release/kmscreen2pdf_version_0.1.1_win11.zip) Windows executable.
 3. Place the executable in a directory where you have read and write access.
 4. Execute the application from FileMaker or run it directly.
 5. The application will create a directory named 'kmscreen2pdf' in the same location as the executable. Within this directory, the following subdirectories will be generated:
