@@ -26,14 +26,15 @@ The utility has the following command line options:
 kmscreen2pdf.exe
 
 Usage:
-  kmscreen2pdf.exe [OPTIONS]
+  kmscreen2pdf.exe [--basedir=<dir>] [--filetype=<ext>] [--do-not-convert-text]
   kmscreen2pdf.exe -h
 
 Options:
-  -h --help         Show this screen.
-  --version         Show version.
-  --basedir=<dir>   Select the base directory for the input and output.
-  --filetype=<ext>  Select the file type for the image [default: wmf].
+  -h --help                 Show this screen.
+  --version                 Show version.
+  --basedir=<dir>           Select the base directory for the input and output.
+  --filetype=<ext>          Select the file type for the image [default: wmf].
+  --do-not-convert-text     Do not convert text files from UTF-16 LE to UTF-8.
 
 Description:
     This Windows program converts images and text files to PDFs with invisible text.

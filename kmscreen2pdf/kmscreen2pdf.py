@@ -6,10 +6,11 @@ Usage:
   kmscreen2pdf.exe -h
 
 Options:
-  -h --help         Show this screen.
-  --version         Show version.
-  --basedir=<dir>   Select the base directory for the input and output.
-  --filetype=<ext>  Select the file type for the image [default: wmf].
+  -h --help                 Show this screen.
+  --version                 Show version.
+  --basedir=<dir>           Select the base directory for the input and output.
+  --filetype=<ext>          Select the file type for the image [default: wmf].
+  --do-not-convert-text     Do not convert text files from UTF-16 LE to UTF-8.
 
 Description:
     This Windows program converts images and text files to PDFs with invisible text.
@@ -76,6 +77,19 @@ except ImportError:
     window.error("ImageMagick not found", "ImageMagick is required. Is it installed?")
     sys.exit(1)
 
+def convert_from_utf16_le_to_utf8(file_path: pathlib.Path)->str:
+    """Convert a text file from UTF-16 LE to UTF-8."""
+    return file_path.read_text(encoding="utf-16le",errors='strict')
+    # tmp_file_path = file_path.with_suffix(".tmp")
+    # tmp_file_path.write_text(file_path.read_text(encoding="utf-16"),encoding="utf-8")
+    # converted_text = tmp_file_path.read_text(encoding="utf-8")
+    # tmp_file_path.unlink()
+    # logger.info(converted_text)
+    # return converted_text
+    #bytes = file_path.read_bytes()
+    #return bytes.decode("utf-16le")
+    #"utf8_bytes = utf16le_string.encode("utf-8")
+    #return utf8_bytes.decode("utf-8")
 
 def convert_img_to_png(img_path: pathlib.Path):
     """Convert image to PNG using wand (ImageMagick).
@@ -169,7 +183,7 @@ def main():
     """Loop through the input directory,
     find matching image and text files,
     and create a PDF with invisible text."""
-    arguments = docopt(__doc__, version="kmscreen2pdf 0.1.1")
+    arguments = docopt(__doc__, version="kmscreen2pdf 0.1.2")
     base_dir_from_arg = arguments.get("--basedir")
     if not base_dir_from_arg:
         base_dir = pathlib.Path(get_executable_path()).parent / "kmscreen2pdf"
@@ -196,7 +210,10 @@ def main():
         output_pdf_path = output_dir / image_path.with_suffix(".pdf").name
         png_image = image_path.with_suffix(".png")
         try:
-            text = text_file_path.read_text(encoding="utf-8")
+            if arguments.get("--do-not-convert-text"):
+                text = text_file_path.read_text(encoding="utf-8")
+            else:
+                text = convert_from_utf16_le_to_utf8(text_file_path)
             text = text.replace("\n", "\r\n")
             create_pdf_with_invisible_text(image_path, output_pdf_path, text)
         except Exception as e:
