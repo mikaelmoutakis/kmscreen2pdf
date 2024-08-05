@@ -2,8 +2,10 @@
 kmscreen2pdf.exe
 
 Usage:
-  kmscreen2pdf.exe [--basedir=<dir>] [--filetype=<ext>]
+  kmscreen2pdf.exe [--basedir=<dir>] [--filetype=<ext>] [--do-not-convert-text] [--dpi=<dpi>] [--letter]
   kmscreen2pdf.exe -h
+  kmscreen2pdf.exe --version
+
 
 Options:
   -h --help                 Show this screen.
@@ -11,6 +13,8 @@ Options:
   --basedir=<dir>           Select the base directory for the input and output.
   --filetype=<ext>          Select the file type for the image [default: wmf].
   --do-not-convert-text     Do not convert text files from UTF-16 LE to UTF-8.
+  --dpi=<dpi>               Set the DPI for the image [default: 300].
+  --letter                  Set the page size for the PDF to 'letter' instead of A4.
 
 Description:
     This Windows program converts images and text files to PDFs with invisible text.
@@ -22,12 +26,13 @@ import sys
 import ctypes
 import platform
 import pathlib
-from PIL import Image
+#from PIL import Image
 from reportlab.lib.pagesizes import letter, A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.colors import Color
 from loguru import logger
 from docopt import docopt
+from typing import List
 
 
 class MessageBox:
@@ -91,15 +96,24 @@ def convert_from_utf16_le_to_utf8(file_path: pathlib.Path)->str:
     #"utf8_bytes = utf16le_string.encode("utf-8")
     #return utf8_bytes.decode("utf-8")
 
-def convert_img_to_png(img_path: pathlib.Path):
+def convert_img_to_png(img_path: pathlib.Path,page_size=A4,dpi=300)->List:
     """Convert image to PNG using wand (ImageMagick).
-    For WMF files only Windows is supported."""
+    For WMF files only Windows is supported.
+    The image is resized to 2481 pixels wide, which
+    corresponds to the width of a A4 page at 300 dpi."""
     png_path = img_path.with_suffix(".png")
+    page_width, page_height = page_size
+    # The default dpi for ReportLab PDFs is approx 72 dpi
+    dpi = 300 if not dpi else abs(dpi)
+    scaling_factor = dpi/71.9468
     with WandImage(filename=img_path) as img:
+        image_height,image_width = img.height, img.width
+        new_width = page_width * scaling_factor
+        new_heigth = (image_height * new_width) / image_width
+        img.resize(int(round(new_width,0)), int(round(new_heigth,0)))
         img.format = "png"
         img.save(filename=png_path)
-    img_path.unlink()
-    return png_path
+    return png_path,new_width,new_heigth
 
 
 def get_executable_path():
@@ -112,43 +126,40 @@ def get_executable_path():
 
 
 def create_pdf_with_invisible_text(
-    image_path, output_pdf_path, text, text_position=(50, 50), page_size=A4
+    image_path, output_pdf_path, text,  page_size=A4,dpi=300
 ):
     """Create a PDF with invisible text on top of an image."""
     # Create a canvas for the PDF
     c = canvas.Canvas(str(output_pdf_path), pagesize=page_size)
 
     # Convert WMF to PNG
-    png_image_path = convert_img_to_png(image_path)
+    png_image_path,new_width,new_height = convert_img_to_png(image_path,page_size,dpi)
 
-    # Open the image using Pillow
-    img = Image.open(str(png_image_path))
-
-    # Get image size
-    img_width, img_height = img.size
-
-    # Convert Pillow image to ReportLab-compatible format
-    # temp_image = "temp_image.png"
-    # img.save(temp_image)
-
-    # Calculate position to center the image
+    # Calculate position to center the image 
     page_width, page_height = page_size
-    x = (page_width - img_width // 1.5) // 2
-    y = (page_height - img_height // 1.5) // 2
 
-    # Draw the image on the PDF
-    c.drawImage(png_image_path, x, y, width=img_width // 1.5, height=img_height // 1.5)
+    # Calculate the size of the image on the PDF
+    width_on_page = page_width
+    height_on_page = (new_height * width_on_page) // new_width
+ 
+    # Draw the image on the PDF at the specified position
+    # ReportLab uses the bottom left corner as the origin
+    c.drawImage(image = png_image_path, 
+                x = 0, 
+                y = page_height - height_on_page,
+                width = width_on_page,
+                height = height_on_page)
+    
 
     # Set the text color to transparent
     transparent_color = Color(0, 0, 0, alpha=0)
     c.setFillColor(transparent_color)
 
     # Embed the invisible text on the PDF at the specified position
-    # c.drawString(text_position[0], text_position[1], text)
-    text_object = c.beginText()
-    text_object.setTextOrigin(text_position[0], text_position[1])
     lines = re.split(r"\r\n|\r|\n", text)
     line_height = 14
+    text_position = (0, page_height - line_height)
+    text_object = c.beginText()
     for i, line in enumerate(lines):
         text_object.setTextOrigin(text_position[0], text_position[1] - i * line_height)
         text_object.textLine(line)
@@ -157,9 +168,6 @@ def create_pdf_with_invisible_text(
     # Save the PDF
     c.showPage()
     c.save()
-
-    # Delete the temporary PNG image
-    # png_image_path.unlink()
 
 
 def find_matching_documents(
@@ -183,7 +191,8 @@ def main():
     """Loop through the input directory,
     find matching image and text files,
     and create a PDF with invisible text."""
-    arguments = docopt(__doc__, version="kmscreen2pdf 0.1.2")
+    arguments = docopt(__doc__, version="kmscreen2pdf 0.1.3")
+    # Set the base directory for input and output files
     base_dir_from_arg = arguments.get("--basedir")
     if not base_dir_from_arg:
         base_dir = pathlib.Path(get_executable_path()).parent / "kmscreen2pdf"
@@ -204,6 +213,11 @@ def main():
     log_dir = base_dir / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     logger.add(log_dir / "kmscreen2pdf.log", retention="30 days")
+    # Set the default DPI for the image
+    dpi = int(arguments.get("--dpi", "300"))
+    # Set the page size for the PDF
+    page_size = letter if arguments.get("--letter",False) else A4
+    # Loop through the input directory and create PDFs
     for image_path, text_file_path in find_matching_documents(
         input_dir, image_extension=arguments["--filetype"]
     ):
@@ -215,7 +229,7 @@ def main():
             else:
                 text = convert_from_utf16_le_to_utf8(text_file_path)
             text = text.replace("\n", "\r\n")
-            create_pdf_with_invisible_text(image_path, output_pdf_path, text)
+            create_pdf_with_invisible_text(image_path, output_pdf_path, text,page_size,dpi)
         except Exception as e:
             window.error(
                 "Processing error",
